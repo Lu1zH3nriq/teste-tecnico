@@ -1,0 +1,366 @@
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 1rem;
+}
+
+.auth-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    width: 100%;
+    max-width: 480px;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.auth-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 2rem;
+    text-align: center;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.auth-header h1 {
+    color: #495057;
+    font-size: 2rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+}
+
+.auth-header p {
+    color: #6c757d;
+    font-size: 0.95rem;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.auth-form {
+    padding: 2rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #495057;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.form-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background-color: #fff;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-input:disabled {
+    background-color: #f8f9fa;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.form-input.error {
+    border-color: #dc3545;
+}
+
+.form-input.error:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+}
+
+.field-error {
+    color: #dc3545;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    display: block;
+}
+
+.auth-button {
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+}
+
+.auth-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+}
+
+.auth-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.auth-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.error-message {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 0.75rem 1rem;
+    border: 1px solid #f5c6cb;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+}
+
+.auth-footer {
+    background: #f8f9fa;
+    padding: 1.5rem 2rem;
+    text-align: center;
+    border-top: 1px solid #e9ecef;
+}
+
+.auth-footer p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.auth-link {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.auth-link:hover {
+    color: #5a67d8;
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .auth-container {
+        padding: 0.5rem;
+    }
+
+    .auth-card {
+        max-width: none;
+        margin: 0;
+        border-radius: 12px;
+    }
+
+    .auth-header {
+        padding: 1.5rem;
+    }
+
+    .auth-header h1 {
+        font-size: 1.75rem;
+    }
+
+    .auth-form {
+        padding: 1.5rem;
+    }
+
+    .auth-footer {
+        padding: 1.25rem 1.5rem;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .auth-header {
+        padding: 1.25rem;
+    }
+
+    .auth-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .auth-header p {
+        font-size: 0.9rem;
+    }
+
+    .auth-form {
+        padding: 1.25rem;
+    }
+
+    .auth-footer {
+        padding: 1rem 1.25rem;
+    }
+
+    .form-input {
+        padding: 0.625rem 0.875rem;
+    }
+
+    .auth-button {
+        padding: 0.75rem 1.25rem;
+    }
+}
+
+@media (prefers-contrast: high) {
+    .form-input {
+        border-width: 2px;
+    }
+
+    .auth-button {
+        border: 2px solid currentColor;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .auth-card {
+        animation: none;
+    }
+
+    .auth-button {
+        transition: none;
+    }
+
+    .spinner {
+        animation: none;
+    }
+}
+
+.password-input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input-container .form-input {
+    padding-right: 3rem;
+    flex: 1;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    z-index: 1;
+}
+
+.password-toggle-btn:hover {
+    color: #495057;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.password-toggle-btn:focus {
+    outline: none;
+    color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.password-toggle-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    color: #adb5bd;
+}
+
+.password-toggle-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2;
+}
+
+@media (max-width: 480px) {
+    .password-toggle-btn {
+        right: 0.5rem;
+    }
+    
+    .password-input-container .form-input {
+        padding-right: 2.5rem;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    .password-toggle-btn {
+        color: #adb5bd;
+    }
+    
+    .password-toggle-btn:hover {
+        color: #ffffff;
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .password-toggle-btn:focus {
+        color: #66b3ff;
+    }
+}

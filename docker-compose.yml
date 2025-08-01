@@ -1,0 +1,43 @@
+services:
+  # Backend Django REST Framework
+  backend:
+    build:
+      context: ./serverapp
+      dockerfile: Dockerfile
+    container_name: todolist-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=1
+      - COSMOS_ENDPOINT=${COSMOS_ENDPOINT}
+      - COSMOS_KEY=${COSMOS_KEY}
+      - COSMOS_DATABASE=${COSMOS_DATABASE}
+    volumes:
+      - ./serverapp:/app
+    depends_on:
+      - frontend
+    networks:
+      - todolist-network
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./webapp
+      dockerfile: Dockerfile
+    container_name: todolist-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    volumes:
+      - ./webapp:/app
+      - /app/node_modules
+    networks:
+      - todolist-network
+
+networks:
+  todolist-network:
+    driver: bridge
+
+volumes:
+  node_modules:

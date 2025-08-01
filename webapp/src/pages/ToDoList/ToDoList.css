@@ -1,0 +1,162 @@
+.dashboard-container {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.dashboard-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1rem 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-info span {
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+.logout-button {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.logout-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.dashboard-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.welcome-section {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.welcome-section h2 {
+  color: #495057;
+  margin: 0 0 1rem 0;
+  font-size: 2rem;
+}
+
+.welcome-section p {
+  color: #6c757d;
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.feature-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.feature-card {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  transition: transform 0.3s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.feature-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.feature-card h3 {
+  color: #495057;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+}
+
+.feature-card p {
+  color: #6c757d;
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.feature-status {
+  background: #e9ecef;
+  color: #6c757d;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .dashboard-header-content {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .dashboard-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .user-info {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .dashboard-main {
+    padding: 1rem;
+  }
+
+  .welcome-section {
+    padding: 1.5rem;
+  }
+
+  .welcome-section h2 {
+    font-size: 1.5rem;
+  }
+
+  .feature-cards {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}

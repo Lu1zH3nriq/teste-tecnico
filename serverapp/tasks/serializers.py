@@ -54,10 +54,15 @@ class TaskUpdateSerializer(TaskSerializer):
 
 class TaskListSerializer(serializers.ModelSerializer):
     is_overdue = serializers.ReadOnlyField()
+    days_until_due = serializers.ReadOnlyField()
+    tags_list = serializers.ReadOnlyField(source='get_tags_list')
+    owner = serializers.StringRelatedField(read_only=True)
     
     class Meta:
         model = Task
         fields = [
-            'id', 'title', 'priority', 'status', 'due_date',
-            'is_completed', 'created_at', 'is_overdue'
+            'id', 'title', 'description', 'priority', 'status', 
+            'due_date', 'completed_at', 'is_completed', 'tags',
+            'tags_list', 'created_at', 'updated_at', 'owner',
+            'is_overdue', 'days_until_due'
         ]

@@ -6,3 +6,11 @@ azure-cosmos==4.5.1
 python-dotenv==1.0.0
 djangorestframework-simplejwt==5.3.0
 dj-database-url==2.1.0
+drf-yasg==1.21.7
+
+
+pytest==7.4.3
+pytest-django==4.7.0
+pytest-cov==4.1.0
+factory-boy==3.3.0
+faker==19.12.0

@@ -58,73 +58,179 @@
   padding: 2rem 1rem;
 }
 
-.welcome-section {
+.create-task-section {
   background: white;
   border-radius: 12px;
-  padding: 2rem;
+  padding: 0.5rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.section-header {
   text-align: center;
+  margin-bottom: 2rem;
 }
 
-.welcome-section h2 {
+.section-header h2 {
   color: #495057;
-  margin: 0 0 1rem 0;
-  font-size: 2rem;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.8rem;
 }
 
-.welcome-section p {
+.section-header p {
   color: #6c757d;
   font-size: 1.1rem;
-  margin-bottom: 2rem;
+  margin: 0;
   line-height: 1.6;
 }
 
-.feature-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
+.create-task-card {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.3rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  margin-top: 1.5rem;
+}
+
+.action-buttons-container {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.create-task-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 50px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  min-width: 180px;
+  justify-content: center;
+}
+
+.create-task-btn.primary {
+  background: white;
+  color: #667eea;
+}
+
+.create-task-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  background: #f8f9fa;
+}
+
+.create-task-btn.secondary {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.create-task-btn.secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.tasks-section {
   margin-top: 2rem;
 }
 
-.feature-card {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 12px;
-  padding: 1.5rem;
-  text-align: center;
-  transition: transform 0.3s ease;
-}
-
-.feature-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-}
-
-.feature-icon {
-  font-size: 3rem;
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1rem;
+  padding: 0 4px;
 }
 
-.feature-card h3 {
+.section-title h3 {
+  margin: 0;
+  font-size: 1.3rem;
   color: #495057;
-  margin: 0 0 0.5rem 0;
-  font-size: 1.2rem;
+  font-weight: 600;
 }
 
-.feature-card p {
+.tasks-count {
   color: #6c757d;
-  font-size: 0.95rem;
-  margin-bottom: 1rem;
-  line-height: 1.5;
+  font-size: 0.9rem;
+  background: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.feature-status {
-  background: #e9ecef;
+.task-title-cell strong {
+  display: block;
+  color: #495057;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.task-description {
   color: #6c757d;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.due-date-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #495057;
+  font-size: 0.9rem;
+}
+
+.due-date-cell.overdue {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.overdue-label {
+  background: #dc3545;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 0.7rem;
   font-weight: 500;
+  margin-left: 8px;
+}
+
+.tags-container {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  max-width: 200px;
+}
+
+.tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #e9ecef;
+  color: #495057;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.text-center {
+  text-align: center;
 }
 
 @media (max-width: 768px) {
@@ -147,16 +253,146 @@
     padding: 1rem;
   }
 
-  .welcome-section {
+  .create-task-section {
     padding: 1.5rem;
   }
 
-  .welcome-section h2 {
+  .section-header h2 {
     font-size: 1.5rem;
   }
 
-  .feature-cards {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+  .create-task-card {
+    padding: 1.5rem;
   }
+
+  .action-buttons-container {
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+
+  .create-task-btn {
+    padding: 14px 24px;
+    font-size: 1rem;
+    min-width: 200px;
+  }
+
+  .section-title {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .section-title h3 {
+    font-size: 1.1rem;
+  }
+
+  .task-description {
+    max-width: 200px;
+  }
+
+  .tags-container {
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 576px) {
+  .dashboard-main {
+    padding: 0.5rem;
+  }
+
+  .create-task-section {
+    padding: 1rem;
+  }
+
+  .section-header h2 {
+    font-size: 1.3rem;
+  }
+
+  .section-header p {
+    font-size: 1rem;
+  }
+
+  .create-task-card {
+    padding: 1rem;
+  }
+
+  .action-buttons-container {
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .create-task-btn {
+    padding: 12px 20px;
+    font-size: 0.9rem;
+    min-width: 180px;
+  }
+
+  .task-description {
+    max-width: 150px;
+  }
+
+  .tags-container {
+    max-width: 120px;
+  }
+
+  .due-date-cell {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .overdue-label {
+    margin-left: 0;
+    margin-top: 2px;
+  }
+}
+
+.create-task-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.create-task-section,
+.tasks-section {
+  animation: fadeIn 0.5s ease;
+}
+
+.action-btn.incomplete {
+  background-color: #28a745;
+  color: white;
+}
+
+.action-btn.incomplete:hover {
+  background-color: #218838;
+}
+
+.action-btn.complete {
+  background-color: #ff9800;
+  color: white;
+}
+
+.action-btn.complete:hover {
+  background-color: #e68900;
+}
+
+.create-task-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+}
+
+.logout-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
 }

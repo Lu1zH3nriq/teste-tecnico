@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/Login/LoginPage';
 import RegisterPage from './pages/Register/RegisterPage';
-import DashboardPage from './pages/ToDoList/ToDoList';
+import ToDoListPage from './pages/ToDoList/ToDoList';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -30,14 +30,12 @@ function PublicRoute({ children }) {
     return (
       <div className="loading-container">
         <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Carregando...</p>
         </div>
       </div>
     );
   }
 
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : children;
+  return isAuthenticated ? <Navigate to="/todolist" replace /> : children;
 }
 
 function AppRoutes() {
@@ -60,10 +58,10 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/dashboard"
+        path="/todolist"
         element={
           <ProtectedRoute>
-            <DashboardPage />
+            <ToDoListPage />
           </ProtectedRoute>
         }
       />

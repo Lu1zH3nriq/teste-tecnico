@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import Modal from '../common/Modal';
 import './AuthForms.css';
 
 function RegisterForm() {
@@ -16,14 +15,10 @@ function RegisterForm() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [showModal, setShowModal] = useState(false);
-    const [modalConfig, setModalConfig] = useState({
-        type: 'error',
-        title: '',
-        message: '',
-    });
+    const [errorMessage, setErrorMessage] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
     
-    const { register, isLoading, clearError, isAuthenticated } = useAuth();
+    const { register, isLoading, clearError, isAuthenticated, error } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -34,11 +29,13 @@ function RegisterForm() {
 
     useEffect(() => {
         clearError();
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
-        setValidationErrors({});
-    }, [formData]);
+        if (error) {
+            setErrorMessage(error);
+        }
+    }, [error]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -46,6 +43,19 @@ function RegisterForm() {
             ...prev,
             [name]: value,
         }));
+        if (errorMessage) {
+            setErrorMessage('');
+            clearError();
+        }
+        if (successMessage) {
+            setSuccessMessage('');
+        }
+        if (validationErrors[name]) {
+            setValidationErrors(prev => ({
+                ...prev,
+                [name]: ''
+            }));
+        }
     };
 
     const validateForm = () => {
@@ -56,7 +66,7 @@ function RegisterForm() {
         if (!formData.lastName.trim()) {
             errors.lastName = 'Sobrenome é obrigatório';
         }
-        if (!formData.email) {
+        if (!formData.email.trim()) {
             errors.email = 'Email é obrigatório';
         } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
             errors.email = 'Email inválido';
@@ -74,16 +84,12 @@ function RegisterForm() {
         return errors;
     };
 
-    const handleCloseModal = () => {
-        setShowModal(false);
-        if (modalConfig.type === 'success') {
-            navigate('/login');
-        }
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
+        setErrorMessage('');
+        setSuccessMessage('');
+        setValidationErrors({});
         const errors = validateForm();
         if (Object.keys(errors).length > 0) {
             setValidationErrors(errors);
@@ -91,67 +97,68 @@ function RegisterForm() {
             return;
         }
         try {
-            const { firstName, lastName, email, password, confirmPassword } = formData;
-            const result = await register({
-                first_name: firstName,
-                last_name: lastName,
-                email,
-                password,
-                confirm_password: confirmPassword,
-            });
+            const userData = {
+                first_name: formData.firstName,
+                last_name: formData.lastName,
+                email: formData.email,
+                password: formData.password,
+                confirm_password: formData.confirmPassword,
+            };
+            const result = await register(userData);
             if (result.success) {
-                setModalConfig({
-                    type: 'success',
-                    title: 'Cadastro Realizado!',
-                    message: `Olá ${firstName}! Sua conta foi criada com sucesso. Clique em OK para ir para a página de login e acessar sua conta com o email: ${email}`,
+                setSuccessMessage('Conta criada com sucesso! Você pode fazer login agora.');
+                setFormData({
+                    firstName: '',
+                    lastName: '',
+                    email: '',
+                    password: '',
+                    confirmPassword: '',
                 });
-                setShowModal(true);
+                setTimeout(() => {
+                    navigate('/login');
+                }, 200);
             } else {
-                let errorMessage = 'Ocorreu um erro inesperado durante o cadastro.';
-                if (result.errors && Object.keys(result.errors).length > 0) {
-                    const errorKeys = Object.keys(result.errors);
-                    const firstErrorKey = errorKeys[0];
-                    const errorValue = result.errors[firstErrorKey];
-                    errorMessage = Array.isArray(errorValue) 
-                        ? errorValue.join(', ')
-                        : errorValue;
-                }
-                else if (result.error) {
-                    if (typeof result.error === 'string') {
-                        errorMessage = result.error;
-                    } else if (result.error.email) {
-                        errorMessage = Array.isArray(result.error.email) 
-                            ? result.error.email.join(', ')
-                            : result.error.email;
-                    } else if (result.error.non_field_errors) {
-                        errorMessage = Array.isArray(result.error.non_field_errors) 
-                            ? result.error.non_field_errors.join(', ')
-                            : result.error.non_field_errors;
-                    } else {
-                        const firstErrorKey = Object.keys(result.error)[0];
-                        if (firstErrorKey) {
-                            const errorValue = result.error[firstErrorKey];
-                            errorMessage = Array.isArray(errorValue) ? errorValue.join(', ') : errorValue;
-                        }
+                if (result.errors && typeof result.errors === 'object') {
+                    const serverErrors = {};
+                    if (result.errors.email) {
+                        serverErrors.email = Array.isArray(result.errors.email) 
+                            ? result.errors.email[0] 
+                            : result.errors.email;
                     }
-                }
-                setModalConfig({
-                    type: 'error',
-                    title: 'Erro no Cadastro',
-                    message: errorMessage,
-                });
-                setShowModal(true);
-                if (result.errors) {
-                    setValidationErrors(result.errors);
+                    if (result.errors.first_name) {
+                        serverErrors.firstName = Array.isArray(result.errors.first_name) 
+                            ? result.errors.first_name[0] 
+                            : result.errors.first_name;
+                    }
+                    if (result.errors.last_name) {
+                        serverErrors.lastName = Array.isArray(result.errors.last_name) 
+                            ? result.errors.last_name[0] 
+                            : result.errors.last_name;
+                    }
+                    if (result.errors.password) {
+                        serverErrors.password = Array.isArray(result.errors.password) 
+                            ? result.errors.password[0] 
+                            : result.errors.password;
+                    }
+                    if (result.errors.confirm_password) {
+                        serverErrors.confirmPassword = Array.isArray(result.errors.confirm_password) 
+                            ? result.errors.confirm_password[0] 
+                            : result.errors.confirm_password;
+                    }
+                    setValidationErrors(serverErrors);
+                    const fieldErrors = ['email', 'first_name', 'last_name', 'password'];
+                    const hasOnlyFieldErrors = Object.keys(result.errors).every(key => fieldErrors.includes(key));
+                    if (!hasOnlyFieldErrors) {
+                        const errorMsg = result.error || result.message || 'Erro ao criar conta. Verifique os dados informados.';
+                        setErrorMessage(errorMsg);
+                    }
+                } else {
+                    const errorMsg = result.error || result.message || 'Erro ao criar conta. Tente novamente.';
+                    setErrorMessage(errorMsg);
                 }
             }
         } catch (err) {
-            setModalConfig({
-                type: 'error',
-                title: 'Erro no Cadastro',
-                message: 'Ocorreu um erro inesperado. Tente novamente em alguns instantes.',
-            });
-            setShowModal(true);
+            setErrorMessage('Erro inesperado. Tente novamente.');
         } finally {
             setIsSubmitting(false);
         }
@@ -161,11 +168,22 @@ function RegisterForm() {
         <div className="auth-container">
             <div className="auth-card">
                 <div className="auth-header">
-                    <h1>Cadastro</h1>
-                    <p>Crie sua conta para começar a usar o sistema</p>
+                    <h1>Criar Conta</h1>
+                    <p>Preencha os dados para criar sua conta</p>
                 </div>
-
                 <form onSubmit={handleSubmit} className="auth-form">
+                    {errorMessage && (
+                        <div className="error-message">
+                            <span className="error-icon">⚠️</span>
+                            <span>{errorMessage}</span>
+                        </div>
+                    )}
+                    {successMessage && (
+                        <div className="success-message">
+                            <span className="success-icon">✅</span>
+                            <span>{successMessage}</span>
+                        </div>
+                    )}
                     <div className="form-row">
                         <div className="form-group">
                             <label htmlFor="firstName">Nome</label>
@@ -184,7 +202,6 @@ function RegisterForm() {
                                 <span className="field-error">{validationErrors.firstName}</span>
                             )}
                         </div>
-
                         <div className="form-group">
                             <label htmlFor="lastName">Sobrenome</label>
                             <input
@@ -203,7 +220,6 @@ function RegisterForm() {
                             )}
                         </div>
                     </div>
-
                     <div className="form-group">
                         <label htmlFor="email">Email</label>
                         <input
@@ -221,7 +237,6 @@ function RegisterForm() {
                             <span className="field-error">{validationErrors.email}</span>
                         )}
                     </div>
-
                     <div className="form-group">
                         <label htmlFor="password">Senha</label>
                         <div className="password-input-container">
@@ -260,7 +275,6 @@ function RegisterForm() {
                             <span className="field-error">{validationErrors.password}</span>
                         )}
                     </div>
-
                     <div className="form-group">
                         <label htmlFor="confirmPassword">Confirmar Senha</label>
                         <div className="password-input-container">
@@ -280,7 +294,7 @@ function RegisterForm() {
                                 className="password-toggle-btn"
                                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                 disabled={isLoading || isSubmitting}
-                                aria-label={showConfirmPassword ? "Ocultar confirmação" : "Mostrar confirmação"}
+                                aria-label={showConfirmPassword ? "Ocultar senha" : "Mostrar senha"}
                             >
                                 {showConfirmPassword ? (
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -299,7 +313,6 @@ function RegisterForm() {
                             <span className="field-error">{validationErrors.confirmPassword}</span>
                         )}
                     </div>
-
                     <button
                         type="submit"
                         className="auth-button"
@@ -308,31 +321,21 @@ function RegisterForm() {
                         {isLoading || isSubmitting ? (
                             <span className="loading-spinner">
                                 <span className="spinner"></span>
-                                Criando conta...
                             </span>
                         ) : (
                             'Criar Conta'
                         )}
                     </button>
                 </form>
-
                 <div className="auth-footer">
                     <p>
                         Já tem uma conta?{' '}
                         <Link to="/login" className="auth-link">
-                            Faça login aqui
+                            Entre aqui
                         </Link>
                     </p>
                 </div>
             </div>
-
-            <Modal
-                isOpen={showModal}
-                onClose={handleCloseModal}
-                type={modalConfig.type}
-                title={modalConfig.title}
-                message={modalConfig.message}
-            />
         </div>
     );
 }

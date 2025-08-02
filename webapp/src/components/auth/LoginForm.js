@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import Modal from '../common/Modal';
 import './AuthForms.css';
 
 function LoginForm() {
@@ -11,14 +10,9 @@ function LoginForm() {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [showModal, setShowModal] = useState(false);
-    const [modalConfig, setModalConfig] = useState({
-        type: 'error',
-        title: '',
-        message: '',
-    });
+    const [errorMessage, setErrorMessage] = useState('');
     
-    const { login, isLoading, clearError, isAuthenticated } = useAuth();
+    const { login, isLoading, isAuthenticated, error, clearError } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -31,34 +25,32 @@ function LoginForm() {
         clearError();
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // Sync error from context
+    useEffect(() => {
+        if (error) {
+            setErrorMessage(error);
+        }
+    }, [error]);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
             [name]: value,
         }));
-    };
-
-    const handleCloseModal = () => {
-        setShowModal(false);
+        // Limpa erros quando o usuário digita
+        if (errorMessage) {
+            setErrorMessage('');
+            clearError();
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
+        setErrorMessage(''); // Limpa erros anteriores
 
         const { email, password } = formData;
-
-        if (!email || !password) {
-            setModalConfig({
-                type: 'error',
-                title: 'Campos Obrigatórios',
-                message: 'Por favor, preencha todos os campos para continuar.',
-            });
-            setShowModal(true);
-            setIsSubmitting(false);
-            return;
-        }
 
         try {
             const result = await login(email, password);
@@ -66,69 +58,13 @@ function LoginForm() {
             if (result.success) {
                 navigate('/dashboard');
             } else {
-                let errorMessage = 'Credenciais inválidas. Verifique seu email e senha.';
-                
-                if (result.errors && Object.keys(result.errors).length > 0) {
-                    const errorKeys = Object.keys(result.errors);
-                    const firstErrorKey = errorKeys[0];
-                    const errorValue = result.errors[firstErrorKey];
-                    
-                    if (firstErrorKey === 'non_field_errors') {
-                        errorMessage = Array.isArray(errorValue) 
-                            ? errorValue.join(', ')
-                            : errorValue;
-                    } else if (firstErrorKey === 'email') {
-                        errorMessage = Array.isArray(errorValue) 
-                            ? errorValue.join(', ')
-                            : errorValue;
-                    } else if (firstErrorKey === 'password') {
-                        errorMessage = Array.isArray(errorValue) 
-                            ? errorValue.join(', ')
-                            : errorValue;
-                    } else {
-                        errorMessage = Array.isArray(errorValue) 
-                            ? errorValue.join(', ')
-                            : errorValue;
-                    }
-                }
-                else if (result.error) {
-                    if (typeof result.error === 'string') {
-                        errorMessage = result.error;
-                    } else if (result.error.non_field_errors) {
-                        errorMessage = Array.isArray(result.error.non_field_errors) 
-                            ? result.error.non_field_errors.join(', ')
-                            : result.error.non_field_errors;
-                    } else if (result.error.email) {
-                        errorMessage = Array.isArray(result.error.email) 
-                            ? result.error.email.join(', ')
-                            : result.error.email;
-                    } else if (result.error.password) {
-                        errorMessage = Array.isArray(result.error.password) 
-                            ? result.error.password.join(', ')
-                            : result.error.password;
-                    } else {
-                        const firstErrorKey = Object.keys(result.error)[0];
-                        if (firstErrorKey) {
-                            const errorValue = result.error[firstErrorKey];
-                            errorMessage = Array.isArray(errorValue) ? errorValue.join(', ') : errorValue;
-                        }
-                    }
-                }
-                
-                setModalConfig({
-                    type: 'error',
-                    title: 'Erro no Login',
-                    message: errorMessage,
-                });
-                setShowModal(true);
+                // Exibe erro específico do servidor ou mensagem padrão
+                const errorMsg = result.error || 'Erro no login. Verifique suas credenciais.';
+                setErrorMessage(errorMsg);
             }
         } catch (err) {
-            setModalConfig({
-                type: 'error',
-                title: 'Erro no Login',
-                message: 'Ocorreu um erro inesperado. Tente novamente em alguns instantes.',
-            });
-            setShowModal(true);
+            console.error('Erro no login:', err);
+            setErrorMessage('Erro inesperado. Tente novamente.');
         } finally {
             setIsSubmitting(false);
         }
@@ -143,6 +79,13 @@ function LoginForm() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="auth-form">
+                    {errorMessage && (
+                        <div className="error-message">
+                            <span className="error-icon">⚠️</span>
+                            <span>{errorMessage}</span>
+                        </div>
+                    )}
+
                     <div className="form-group">
                         <label htmlFor="email">Email</label>
                         <input
@@ -202,7 +145,6 @@ function LoginForm() {
                         {isLoading || isSubmitting ? (
                             <span className="loading-spinner">
                                 <span className="spinner"></span>
-                                Entrando...
                             </span>
                         ) : (
                             'Entrar'
@@ -219,14 +161,6 @@ function LoginForm() {
                     </p>
                 </div>
             </div>
-
-            <Modal
-                isOpen={showModal}
-                onClose={handleCloseModal}
-                type={modalConfig.type}
-                title={modalConfig.title}
-                message={modalConfig.message}
-            />
         </div>
     );
 }

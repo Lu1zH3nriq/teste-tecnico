@@ -41,7 +41,6 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -77,34 +76,6 @@ DATABASES = {
     }
 }
 
-COSMOS_ENDPOINT = os.getenv('COSMOS_ENDPOINT')
-COSMOS_KEY = os.getenv('COSMOS_KEY')
-COSMOS_DATABASE = os.getenv('COSMOS_DATABASE', 'tasks')
-
-COSMOS_CONTAINERS = {
-    'users': {
-        'name': 'users',
-        'partition_key': '/id',
-        'throughput': 400
-    },
-    'tasks': {
-        'name': 'tasks',
-        'partition_key': '/owner_id',
-        'throughput': 400
-    }
-}
-
-COSMOS_CONNECTION_POLICY = {
-    'enable_endpoint_discovery': True,
-    'connection_mode': 'Direct',
-    'enable_tcp_over_https': True,
-    'max_connection_pool_size': 50,
-    'request_timeout': 10,
-    'connection_timeout': 5,
-    'retry_total': 3,
-    'retry_backoff_factor': 0.3,
-}
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -130,6 +101,14 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Configuração adicional para arquivos estáticos
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
+# Configuração para servir arquivos estáticos em produção
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

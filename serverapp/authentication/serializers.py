@@ -2,8 +2,6 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.db import transaction, IntegrityError
-from .cosmos_models import UserService, CosmosUser
-from core.cosmos_service import is_cosmos_configured
 import re
 import logging
 
@@ -104,19 +102,18 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError({
                         "email": ["Este email já está em uso."]
                     })
-                result = UserService.create_user(
+                
+                # Criar usuário apenas no Django
+                user = User.objects.create_user(
                     username=email,
                     email=email,
                     password=password,
                     first_name=first_name,
                     last_name=last_name
                 )
-                django_user = result['django_user']
-                if result.get('cosmos_user'):
-                    logger.info(f"User created in both Django and Cosmos DB: {email}")
-                else:
-                    logger.info(f"User created in Django only (Cosmos DB not configured): {email}")
-                return django_user
+                logger.info(f"User created in Django: {email}")
+                return user
+                
         except IntegrityError as e:
             logger.error(f"Database integrity error during user creation: {str(e)}")
             raise serializers.ValidationError({

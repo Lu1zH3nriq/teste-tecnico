@@ -387,6 +387,15 @@
   background-color: #e68900;
 }
 
+.action-btn.share {
+  background-color: #6f42c1;
+  color: white;
+}
+
+.action-btn.share:hover {
+  background-color: #5a369c;
+}
+
 .create-task-btn:focus {
   outline: none;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);

@@ -9,13 +9,9 @@ services:
       - "8000:8000"
     environment:
       - DEBUG=1
-      - COSMOS_ENDPOINT=${COSMOS_ENDPOINT}
-      - COSMOS_KEY=${COSMOS_KEY}
-      - COSMOS_DATABASE=${COSMOS_DATABASE}
     volumes:
       - ./serverapp:/app
-    depends_on:
-      - frontend
+      - sqlite_data:/app/data
     networks:
       - todolist-network
 
@@ -32,6 +28,8 @@ services:
     volumes:
       - ./webapp:/app
       - /app/node_modules
+    depends_on:
+      - backend
     networks:
       - todolist-network
 
@@ -41,3 +39,4 @@ networks:
 
 volumes:
   node_modules:
+  sqlite_data:  

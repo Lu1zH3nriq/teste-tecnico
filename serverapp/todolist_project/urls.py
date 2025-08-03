@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path, include, re_path
+from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
@@ -21,12 +21,14 @@ schema_view = get_schema_view(
 router = DefaultRouter()
 
 urlpatterns = [
+    path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/auth/', include('authentication.urls')),
     path('api/tasks/', include('tasks.urls')),
     path('docs/swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('docs/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Servir arquivos estáticos (incluindo em produção para containers)
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

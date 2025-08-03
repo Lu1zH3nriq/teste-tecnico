@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiEdit, FiTrash2, FiCheck, FiX, FiClock, FiTag, FiSettings } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiCheck, FiX, FiClock, FiTag, FiSettings, FiShare2 } from 'react-icons/fi';
 import DataTable from '../../components/common/DataTable';
 import TaskFilters from '../../components/common/TaskFilters';
 import TaskModal from '../../components/common/TaskModal';
 import ConfirmationModal from '../../components/common/ConfirmationModal';
+import ShareTaskModal from '../../components/common/ShareTaskModal';
 import taskService from '../../services/taskService';
 import './ToDoList.css';
 
@@ -31,8 +32,13 @@ function ToDoListPage() {
   });
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [confirmationLoading, setConfirmationLoading] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareTask, setShareTask] = useState(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [sharedUsers, setSharedUsers] = useState([]);
+  const [newUserEmail, setNewUserEmail] = useState('');
   
-  // Filtros que estão sendo editados (no componente de filtros)
+ 
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -43,7 +49,7 @@ function ToDoListPage() {
     overdue: false
   });
   
-  // Filtros que estão atualmente aplicados (usados nas requisições)
+ 
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
     status: '',
@@ -129,6 +135,154 @@ function ToDoListPage() {
     navigate('/gerenciarCategorias');
   };
 
+  const handleShareTask = async (task) => {
+    setShareTask(task);
+    setShareModalOpen(true);
+    setShareLoading(true);
+    
+    try {
+      
+      const response = await taskService.getSharedUsers(task.id);
+      
+      if (response.shared_users) {
+        setSharedUsers(response.shared_users);
+  
+        setShareTask(prevTask => ({
+          ...prevTask,
+          owner_info: response.owner,
+          current_user_is_owner: response.current_user_is_owner
+        }));
+      } else {
+        
+        setSharedUsers(response);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar usuários compartilhados:', error);
+      
+      
+      let errorMessage = 'Ocorreu um erro ao carregar os usuários compartilhados.';
+      
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      showConfirmationModal(
+        'error',
+        'Erro ao Carregar',
+        errorMessage
+      );
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleCloseShareModal = () => {
+    setShareModalOpen(false);
+    setShareTask(null);
+    setSharedUsers([]);
+    setNewUserEmail('');
+  };
+
+  const handleAddUserToShare = async () => {
+    if (!newUserEmail.trim()) {
+      showConfirmationModal(
+        'error',
+        'Email Inválido',
+        'Por favor, digite um email válido.'
+      );
+      return;
+    }
+
+   
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newUserEmail.trim())) {
+      showConfirmationModal(
+        'error',
+        'Email Inválido',
+        'Por favor, digite um email válido.'
+      );
+      return;
+    }
+
+    
+    if (sharedUsers.some(user => user.email === newUserEmail.trim())) {
+      showConfirmationModal(
+        'error',
+        'Usuário Já Adicionado',
+        'Este usuário já tem acesso a esta tarefa.'
+      );
+      return;
+    }
+
+    setShareLoading(true);
+    try {
+      
+      const result = await taskService.shareTaskWithUser(shareTask.id, newUserEmail.trim());
+      
+      
+      if (result.user) {
+        setSharedUsers(prev => [...prev, result.user]);
+      }
+      setNewUserEmail('');
+      
+      showConfirmationModal(
+        'success',
+        'Usuário Adicionado!',
+        result.message || `A tarefa foi compartilhada com ${newUserEmail}.`
+      );
+    } catch (error) {
+      console.error('Erro ao adicionar usuário:', error);
+      const errorMessage = error.response?.data?.error || 'Ocorreu um erro ao adicionar o usuário. Tente novamente.';
+      showConfirmationModal(
+        'error',
+        'Erro ao Compartilhar',
+        errorMessage
+      );
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleRemoveUserFromShare = async (userId, userName) => {
+    showConfirmationModal(
+      'confirm',
+      'Remover Compartilhamento',
+      `Tem certeza que deseja remover ${userName} do compartilhamento desta tarefa?`,
+      () => confirmRemoveUserFromShare(userId)
+    );
+  };
+
+  const confirmRemoveUserFromShare = async (userId) => {
+    setConfirmationLoading(true);
+    try {
+      
+      const result = await taskService.removeUserFromTask(shareTask.id, userId);
+      
+      
+      setSharedUsers(prev => prev.filter(user => user.id !== userId));
+      
+      closeConfirmationModal();
+      showConfirmationModal(
+        'success',
+        'Usuário Removido!',
+        result.message || 'O usuário foi removido do compartilhamento da tarefa.'
+      );
+    } catch (error) {
+      console.error('Erro ao remover usuário:', error);
+      closeConfirmationModal();
+      const errorMessage = error.response?.data?.error || 'Ocorreu um erro ao remover o usuário. Tente novamente.';
+      showConfirmationModal(
+        'error',
+        'Erro ao Remover',
+        errorMessage
+      );
+    } finally {
+      setConfirmationLoading(false);
+    }
+  };
+
   const handleEditTask = (task) => {
     setEditingTask(task);
     setModalOpen(true);
@@ -158,12 +312,22 @@ function ToDoListPage() {
       setCurrentPage(1);
     } catch (error) {
       console.error('Erro ao salvar tarefa:', error);
+      
+      
+      let errorMessage = editingTask 
+        ? 'Ocorreu um erro ao atualizar a tarefa. Tente novamente.'
+        : 'Ocorreu um erro ao criar a tarefa. Tente novamente.';
+      
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       showConfirmationModal(
         'error',
         'Erro ao Salvar',
-        editingTask 
-          ? 'Ocorreu um erro ao atualizar a tarefa. Tente novamente.'
-          : 'Ocorreu um erro ao criar a tarefa. Tente novamente.'
+        errorMessage
       );
     } finally {
       setModalLoading(false);
@@ -194,10 +358,20 @@ function ToDoListPage() {
     } catch (error) {
       console.error('Erro ao excluir tarefa:', error);
       closeConfirmationModal();
+      
+      
+      let errorMessage = 'Ocorreu um erro ao excluir a tarefa. Tente novamente.';
+      
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       showConfirmationModal(
         'error',
         'Erro ao Excluir',
-        'Ocorreu um erro ao excluir a tarefa. Tente novamente.'
+        errorMessage
       );
     } finally {
       setConfirmationLoading(false);
@@ -246,10 +420,20 @@ function ToDoListPage() {
     } catch (error) {
       console.error('Erro ao atualizar status da tarefa:', error);
       closeConfirmationModal();
+      
+      
+      let errorMessage = 'Ocorreu um erro ao atualizar o status da tarefa. Tente novamente.';
+      
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       showConfirmationModal(
         'error',
         'Erro ao Atualizar',
-        'Ocorreu um erro ao atualizar o status da tarefa. Tente novamente.'
+        errorMessage
       );
     } finally {
       setConfirmationLoading(false);
@@ -268,7 +452,7 @@ function ToDoListPage() {
   };
 
   const handleFiltersChange = (newFilters) => {
-    // Aplicar os novos filtros e resetar para a primeira página
+    
     setFilters(newFilters);
     setAppliedFilters(newFilters);
     setCurrentPage(1);
@@ -402,6 +586,13 @@ function ToDoListPage() {
             {task.is_completed ? <FiX /> : <FiCheck />}
           </button>
           <button
+            onClick={() => handleShareTask(task)}
+            className="action-btn share"
+            title="Compartilhar tarefa"
+          >
+            <FiShare2 />
+          </button>
+          <button
             onClick={() => handleEditTask(task)}
             className="action-btn edit"
             title="Editar tarefa"
@@ -456,13 +647,6 @@ function ToDoListPage() {
                 Nova Tarefa
               </button>
 
-              <button
-                onClick={handleManageCategories}
-                className="create-task-btn secondary"
-              >
-                <FiSettings />
-                Gerenciar Categorias
-              </button>
             </div>
           </div>
         </div>
@@ -519,11 +703,26 @@ function ToDoListPage() {
                 ? 'Sim, Concluir'
                 : confirmationModal.title === 'Reabrir Tarefa'
                   ? 'Sim, Reabrir'
-                  : 'Confirmar'
+                  : confirmationModal.title === 'Remover Compartilhamento'
+                    ? 'Sim, Remover'
+                    : 'Confirmar'
             : 'OK'
         }
         cancelText="Cancelar"
         showCancel={confirmationModal.type === 'confirm'}
+      />
+      
+      <ShareTaskModal
+        isOpen={shareModalOpen}
+        onClose={handleCloseShareModal}
+        task={shareTask}
+        user={user}
+        sharedUsers={sharedUsers}
+        newUserEmail={newUserEmail}
+        onNewUserEmailChange={setNewUserEmail}
+        onAddUser={handleAddUserToShare}
+        onRemoveUser={handleRemoveUserFromShare}
+        loading={shareLoading}
       />
     </div>
   );

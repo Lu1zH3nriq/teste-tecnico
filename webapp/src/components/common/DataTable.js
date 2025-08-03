@@ -58,8 +58,6 @@ const DataTable = ({
     return (
       <div className="data-table-container">
         <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <span>Carregando...</span>
         </div>
       </div>
     );

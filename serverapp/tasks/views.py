@@ -4,6 +4,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db import models
+from django.contrib.auth.models import User
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 import logging
@@ -15,7 +17,6 @@ from .serializers import (
     TaskUpdateSerializer,
     TaskListSerializer
 )
-from .cosmos_models import get_cosmos_task_manager
 
 logger = logging.getLogger(__name__)
 
@@ -57,142 +58,79 @@ logger = logging.getLogger(__name__)
 @permission_classes([IsAuthenticated])
 def task_list_create(request):
     if request.method == 'GET':
-        tasks = Task.objects.filter(owner=request.user)
-        
-        # Filtros básicos
+        from django.db.models import Q
+        queryset = Task.objects.filter(
+            Q(owner=request.user) | Q(shared_with=request.user)
+        ).distinct()
         status_filter = request.GET.get('status')
-        priority_filter = request.GET.get('priority')
-        search = request.GET.get('search')
-        
-        # Filtros de data
-        due_date_from = request.GET.get('due_date_from')
-        due_date_to = request.GET.get('due_date_to')
-        overdue_filter = request.GET.get('overdue')
-        
-        # Aplicar filtros
         if status_filter:
-            tasks = tasks.filter(status=status_filter)
-        
+            queryset = queryset.filter(status=status_filter)
+        priority_filter = request.GET.get('priority')
         if priority_filter:
-            tasks = tasks.filter(priority=priority_filter)
-        
+            queryset = queryset.filter(priority=priority_filter)
+        search = request.GET.get('search')
         if search:
-            # Buscar apenas no título
-            tasks = tasks.filter(title__icontains=search)
-        
-        # Filtros de data
+            queryset = queryset.filter(title__icontains=search)
+        due_date_from = request.GET.get('due_date_from')
         if due_date_from:
             try:
                 from datetime import datetime
                 date_from = datetime.strptime(due_date_from, '%Y-%m-%d').date()
-                tasks = tasks.filter(due_date__gte=date_from)
+                queryset = queryset.filter(due_date__gte=date_from)
             except ValueError:
-                pass  # Ignora formato inválido
-        
+                pass
+        due_date_to = request.GET.get('due_date_to')
         if due_date_to:
             try:
                 from datetime import datetime
                 date_to = datetime.strptime(due_date_to, '%Y-%m-%d').date()
-                tasks = tasks.filter(due_date__lte=date_to)
+                queryset = queryset.filter(due_date__lte=date_to)
             except ValueError:
-                pass  # Ignora formato inválido
-        
-        # Filtro de tarefas atrasadas
+                pass
+        overdue_filter = request.GET.get('overdue')
         if overdue_filter and overdue_filter.lower() == 'true':
+            from datetime import datetime
             now = timezone.now().date()
-            tasks = tasks.filter(due_date__lt=now, status__in=['pending', 'in_progress'])
-        
+            queryset = queryset.filter(
+                due_date__lt=now,
+                status__in=['pending', 'in_progress']
+            )
         ordering = request.GET.get('ordering', '-created_at')
-        tasks = tasks.order_by(ordering)
-        
-        # Debug: verificar quantos registros existem após filtros
-        total_tasks = tasks.count()
-        logger.info(f"Total tasks after filters: {total_tasks}")
-        
-        # Aplicar paginação manual
-        from django.core.paginator import Paginator, EmptyPage
-        from django.http import Http404
-        
-        # Permitir que o frontend defina o page_size, com fallback para 20
-        page_size = request.GET.get('page_size', 20)
-        try:
-            page_size = int(page_size)
-            # Limitar o page_size máximo para evitar sobrecarga
-            page_size = min(page_size, 1000)
-        except (ValueError, TypeError):
-            page_size = 20
-        
-        # Paginação manual com controle total
+        valid_orderings = ['created_at', '-created_at', 'title', '-title', 
+                          'due_date', '-due_date', 'priority', '-priority']
+        if ordering in valid_orderings:
+            if ordering == 'priority' or ordering == '-priority':
+                priority_order = {
+                    'urgent': 4, 'high': 3, 'medium': 2, 'low': 1
+                }
+                queryset = sorted(queryset, 
+                                key=lambda x: priority_order.get(x.priority, 2),
+                                reverse=ordering.startswith('-'))
+                task_ids = [task.id for task in queryset]
+                queryset = Task.objects.filter(id__in=task_ids)
+                if ordering.startswith('-'):
+                    task_ids.reverse()
+                preserved = models.Case(*[models.When(pk=pk, then=pos) for pos, pk in enumerate(task_ids)])
+                queryset = queryset.order_by(preserved)
+            else:
+                queryset = queryset.order_by(ordering)
+        from django.core.paginator import Paginator
+        page_size = min(int(request.GET.get('page_size', 20)), 1000)
+        paginator = Paginator(queryset, page_size)
         page_number = request.GET.get('page', 1)
-        try:
-            page_number = int(page_number)
-        except (ValueError, TypeError):
-            page_number = 1
-            
-        paginator = Paginator(tasks, page_size)
-        
-        try:
-            page_obj = paginator.page(page_number)
-        except EmptyPage:
-            # Se a página não existe, retornar 404
-            raise Http404("Página inválida.")
-        
-        # Serializar os resultados
-        serializer = TaskListSerializer(page_obj.object_list, many=True)
-        
-        # Construir resposta paginada manualmente
+        page_obj = paginator.get_page(page_number)
+        serializer = TaskListSerializer(page_obj, many=True, context={'request': request})
         response_data = {
             'count': paginator.count,
-            'next': None,
-            'previous': None,
+            'next': f"?page={page_obj.next_page_number()}" if page_obj.has_next() else None,
+            'previous': f"?page={page_obj.previous_page_number()}" if page_obj.has_previous() else None,
             'results': serializer.data
         }
-        
-        # Adicionar link para próxima página se existir
-        if page_obj.has_next():
-            next_page = page_obj.next_page_number()
-            next_url = request.build_absolute_uri(request.path)
-            params = request.GET.copy()
-            params['page'] = next_page
-            response_data['next'] = f"{next_url}?{params.urlencode()}"
-        
-        # Adicionar link para página anterior se existir
-        if page_obj.has_previous():
-            prev_page = page_obj.previous_page_number()
-            prev_url = request.build_absolute_uri(request.path)
-            params = request.GET.copy()
-            params['page'] = prev_page
-            response_data['previous'] = f"{prev_url}?{params.urlencode()}"
-        
         return Response(response_data)
-    
     elif request.method == 'POST':
         serializer = TaskCreateSerializer(data=request.data)
         if serializer.is_valid():
             task = serializer.save(owner=request.user)
-            
-            cosmos_manager = get_cosmos_task_manager()
-            cosmos_task_data = {
-                'id': str(task.id),
-                'title': task.title,
-                'description': task.description,
-                'priority': task.priority,
-                'status': task.status,
-                'due_date': task.due_date.isoformat() if task.due_date else None,
-                'is_completed': task.is_completed,
-                'completed_at': task.completed_at.isoformat() if task.completed_at else None,
-                'tags': task.tags,
-                'owner_id': str(request.user.id),
-                'owner_email': request.user.email,
-                'created_at': task.created_at.isoformat(),
-                'updated_at': task.updated_at.isoformat()
-            }
-            
-            try:
-                cosmos_manager.create_task(cosmos_task_data)
-            except Exception as e:
-                logger.error(f"Failed to save task to Cosmos DB: {str(e)}")
-            
             response_serializer = TaskSerializer(task)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -253,13 +191,26 @@ def task_list_create(request):
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def task_detail(request, task_id):
-    task = get_object_or_404(Task, id=task_id, owner=request.user)
-    
+    from django.db.models import Q
+    try:
+        task = Task.objects.get(
+            Q(id=task_id) & (Q(owner=request.user) | Q(shared_with=request.user))
+        )
+    except Task.DoesNotExist:
+        return Response(
+            {'error': 'Tarefa não encontrada ou você não tem permissão para acessá-la'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    is_owner = task.owner == request.user
     if request.method == 'GET':
-        serializer = TaskSerializer(task)
+        serializer = TaskSerializer(task, context={'request': request})
         return Response(serializer.data)
-    
     elif request.method in ['PUT', 'PATCH']:
+        if not is_owner:
+            return Response(
+                {'error': 'Apenas o proprietário da tarefa pode modificá-la'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
         serializer = TaskUpdateSerializer(
             task,
             data=request.data,
@@ -267,39 +218,15 @@ def task_detail(request, task_id):
         )
         if serializer.is_valid():
             task = serializer.save()
-            
-            cosmos_manager = get_cosmos_task_manager()
-            cosmos_task_data = {
-                'id': str(task.id),
-                'title': task.title,
-                'description': task.description,
-                'priority': task.priority,
-                'status': task.status,
-                'due_date': task.due_date.isoformat() if task.due_date else None,
-                'is_completed': task.is_completed,
-                'completed_at': task.completed_at.isoformat() if task.completed_at else None,
-                'tags': task.tags,
-                'owner_id': str(request.user.id),
-                'owner_email': request.user.email,
-                'updated_at': task.updated_at.isoformat()
-            }
-            
-            try:
-                cosmos_manager.update_task(str(task.id), cosmos_task_data)
-            except Exception as e:
-                logger.error(f"Failed to update task in Cosmos DB: {str(e)}")
-            
-            response_serializer = TaskSerializer(task)
+            response_serializer = TaskSerializer(task, context={'request': request})
             return Response(response_serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
     elif request.method == 'DELETE':
-        cosmos_manager = get_cosmos_task_manager()
-        try:
-            cosmos_manager.delete_task(str(task.id), str(request.user.id))
-        except Exception as e:
-            logger.error(f"Failed to delete task from Cosmos DB: {str(e)}")
-        
+        if not is_owner:
+            return Response(
+                {'error': 'Apenas o proprietário da tarefa pode deletá-la'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
         task.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -319,8 +246,22 @@ def task_detail(request, task_id):
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def task_toggle_complete(request, task_id):
-    task = get_object_or_404(Task, id=task_id, owner=request.user)
-    
+    from django.db.models import Q
+    try:
+        task = Task.objects.get(
+            Q(id=task_id) & (Q(owner=request.user) | Q(shared_with=request.user))
+        )
+    except Task.DoesNotExist:
+        return Response(
+            {'error': 'Tarefa não encontrada ou você não tem permissão para acessá-la'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    is_owner = task.owner == request.user
+    if not is_owner:
+        return Response(
+            {'error': 'Apenas o proprietário da tarefa pode alterar o status de conclusão'}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
     if task.is_completed:
         task.status = 'pending'
         task.is_completed = False
@@ -329,31 +270,8 @@ def task_toggle_complete(request, task_id):
         task.status = 'completed'
         task.is_completed = True
         task.completed_at = timezone.now()
-    
     task.save()
-    
-    cosmos_manager = get_cosmos_task_manager()
-    cosmos_task_data = {
-        'id': str(task.id),
-        'title': task.title,
-        'description': task.description,
-        'priority': task.priority,
-        'status': task.status,
-        'due_date': task.due_date.isoformat() if task.due_date else None,
-        'is_completed': task.is_completed,
-        'completed_at': task.completed_at.isoformat() if task.completed_at else None,
-        'tags': task.tags,
-        'owner_id': str(request.user.id),
-        'owner_email': request.user.email,
-        'updated_at': task.updated_at.isoformat()
-    }
-    
-    try:
-        cosmos_manager.update_task(str(task.id), cosmos_task_data)
-    except Exception as e:
-        logger.error(f"Failed to update task in Cosmos DB: {str(e)}")
-    
-    serializer = TaskSerializer(task)
+    serializer = TaskSerializer(task, context={'request': request})
     return Response(serializer.data)
 
 
@@ -393,25 +311,29 @@ def task_toggle_complete(request, task_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def task_stats(request):
-    user_tasks = Task.objects.filter(owner=request.user)
-    
+    from django.db.models import Q
+    user_tasks = Task.objects.filter(
+        Q(owner=request.user) | Q(shared_with=request.user)
+    ).distinct()
     total_tasks = user_tasks.count()
     completed_tasks = user_tasks.filter(is_completed=True).count()
     pending_tasks = user_tasks.filter(status='pending').count()
     in_progress_tasks = user_tasks.filter(status='in_progress').count()
     overdue_tasks = sum(1 for task in user_tasks if task.is_overdue)
-    
     high_priority = user_tasks.filter(priority='high').count()
     medium_priority = user_tasks.filter(priority='medium').count()
     low_priority = user_tasks.filter(priority='low').count()
     urgent_priority = user_tasks.filter(priority='urgent').count()
-    
+    owned_tasks = user_tasks.filter(owner=request.user).count()
+    shared_tasks = user_tasks.filter(shared_with=request.user).exclude(owner=request.user).count()
     stats = {
         'total_tasks': total_tasks,
         'completed_tasks': completed_tasks,
         'pending_tasks': pending_tasks,
         'in_progress_tasks': in_progress_tasks,
         'overdue_tasks': overdue_tasks,
+        'owned_tasks': owned_tasks,
+        'shared_tasks': shared_tasks,
         'completion_rate': (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0,
         'priority_breakdown': {
             'urgent': urgent_priority,
@@ -420,5 +342,190 @@ def task_stats(request):
             'low': low_priority,
         }
     }
-    
     return Response(stats)
+
+
+@swagger_auto_schema(
+    methods=['get'],
+    operation_summary="Listar usuários compartilhados de uma tarefa",
+    operation_description="Retorna lista de usuários que têm acesso à tarefa",
+    responses={
+        200: openapi.Response(description="Lista de usuários compartilhados"),
+        404: openapi.Response(description="Tarefa não encontrada")
+    },
+    tags=['Compartilhamento'],
+    security=[{'Bearer': []}]
+)
+@swagger_auto_schema(
+    methods=['post'],
+    operation_summary="Compartilhar tarefa com usuário",
+    operation_description="Adiciona um usuário ao compartilhamento da tarefa",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING, description='Email do usuário')
+        },
+        required=['email']
+    ),
+    responses={
+        200: openapi.Response(description="Usuário adicionado com sucesso"),
+        400: openapi.Response(description="Email inválido ou usuário não encontrado"),
+        404: openapi.Response(description="Tarefa não encontrada")
+    },
+    tags=['Compartilhamento'],
+    security=[{'Bearer': []}]
+)
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def task_shared_users(request, task_id):
+    from django.db.models import Q
+    try:
+        task = Task.objects.get(
+            Q(id=task_id) & (Q(owner=request.user) | Q(shared_with=request.user))
+        )
+    except Task.DoesNotExist:
+        return Response(
+            {'error': 'Tarefa não encontrada ou você não tem permissão para acessá-la'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    is_owner = task.owner == request.user
+    if request.method == 'GET':
+        shared_users_queryset = task.get_shared_users()
+        shared_users = [
+            {
+                'id': user.id,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email
+            }
+            for user in shared_users_queryset
+        ]
+        response_data = {
+            'shared_users': shared_users,
+            'owner': {
+                'id': task.owner.id,
+                'first_name': task.owner.first_name,
+                'last_name': task.owner.last_name,
+                'email': task.owner.email,
+                'username': task.owner.username
+            },
+            'current_user_is_owner': is_owner,
+            'task_info': {
+                'id': task.id,
+                'title': task.title,
+                'description': task.description
+            }
+        }
+        return Response(response_data)
+    elif request.method == 'POST':
+        if not is_owner:
+            return Response(
+                {'error': 'Apenas o proprietário da tarefa pode adicionar usuários ao compartilhamento'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        email = request.data.get('email')
+        if not email:
+            return Response(
+                {'error': 'Email é obrigatório'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            user_to_share = get_object_or_404(User, email=email)
+            if user_to_share == task.owner:
+                return Response(
+                    {'error': 'Não é possível compartilhar a tarefa com o próprio dono'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if task.is_shared_with(user_to_share):
+                return Response(
+                    {'error': 'Tarefa já está compartilhada com este usuário'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            task.share_with_user(user_to_share)
+            return Response({
+                'message': f'Tarefa compartilhada com {email} com sucesso',
+                'user': {
+                    'id': user_to_share.id,
+                    'first_name': user_to_share.first_name,
+                    'last_name': user_to_share.last_name,
+                    'email': user_to_share.email
+                }
+            })
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Usuário não encontrado com este email'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Erro ao compartilhar tarefa: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+@swagger_auto_schema(
+    methods=['post'],
+    operation_summary="Remover usuário do compartilhamento",
+    operation_description="Remove um usuário do compartilhamento da tarefa",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'user_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='ID do usuário')
+        },
+        required=['user_id']
+    ),
+    responses={
+        200: openapi.Response(description="Usuário removido com sucesso"),
+        400: openapi.Response(description="ID do usuário inválido"),
+        404: openapi.Response(description="Tarefa não encontrada")
+    },
+    tags=['Compartilhamento'],
+    security=[{'Bearer': []}]
+)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def task_remove_user(request, task_id):
+    from django.db.models import Q
+    try:
+        task = Task.objects.get(
+            Q(id=task_id) & (Q(owner=request.user) | Q(shared_with=request.user))
+        )
+    except Task.DoesNotExist:
+        return Response(
+            {'error': 'Tarefa não encontrada ou você não tem permissão para acessá-la'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    is_owner = task.owner == request.user
+    if not is_owner:
+        return Response(
+            {'error': 'Apenas o proprietário da tarefa pode remover usuários do compartilhamento'}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    user_id = request.data.get('user_id')
+    if not user_id:
+        return Response(
+            {'error': 'ID do usuário é obrigatório'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    try:
+        user_to_remove = get_object_or_404(User, id=user_id)
+        if not task.is_shared_with(user_to_remove):
+            return Response(
+                {'error': 'Usuário não está compartilhado com esta tarefa'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        task.unshare_with_user(user_to_remove)
+        return Response({
+            'message': 'Usuário removido do compartilhamento com sucesso'
+        })
+    except Exception as e:
+        return Response(
+            {'error': f'Erro ao remover usuário: {str(e)}'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def task_share(request, task_id):
+    return task_shared_users(request, task_id)
